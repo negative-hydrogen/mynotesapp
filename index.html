@@ -123,12 +123,25 @@ textarea {
   height: 100%;
   top: 0;
   left: 0;
+
+  opacity: 0;
+  transform: translateX(100%);
+  pointer-events: none;
+
   transition: transform 0.35s ease, opacity 0.3s;
-  pointer-events: none;   /* ❌ block clicks by default */
 }
 
 .view.active {
-  pointer-events: auto;   /* ✅ only active screen clickable */
+  opacity: 1;
+  transform: translateX(0);
+  pointer-events: auto;
+  z-index: 2;
+}
+
+.view.hidden-left {
+  transform: translateX(-30%);
+  opacity: 0.4;
+  z-index: 1;
 }
 
 .active { transform: translateX(0); }
@@ -145,14 +158,14 @@ textarea {
   <button onclick="unlock()">Unlock</button>
 </div>
 
-<div id="list" class="view active"></div>
+<div id="list" class="view active">
   <div class="note-item ${c.value.pinned ? 'pinned' : ''}">Notes</div>
   <button onclick="createNote()">+ New</button>
   <div id="notes"></div>
   <div class="fab" onclick="createNote()">+</div>
 </div>
 
-<div id="editorView" class="view hidden-right"></div>
+<div id="editorView" class="view">
   <button onclick="back()">← Back</button>
   <button onclick="pinNote()">📌</button>
   <button onclick="deleteNote()">Delete</button>
@@ -246,13 +259,12 @@ function openEditor(note){
   list.classList.remove("active");
   list.classList.add("hidden-left");
 
-  editorView.classList.remove("hidden-right");
+  
   editorView.classList.add("active");
 }
 
 function back(){
   editorView.classList.remove("active");
-  editorView.classList.add("hidden-right");
 
   list.classList.remove("hidden-left");
   list.classList.add("active");
