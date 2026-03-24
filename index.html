@@ -124,6 +124,11 @@ textarea {
   top: 0;
   left: 0;
   transition: transform 0.35s ease, opacity 0.3s;
+  pointer-events: none;   /* ❌ block clicks by default */
+}
+
+.view.active {
+  pointer-events: auto;   /* ✅ only active screen clickable */
 }
 
 .active { transform: translateX(0); }
