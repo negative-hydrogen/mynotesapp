@@ -23,56 +23,39 @@ body {
   backdrop-filter: blur(12px);
 }
 
-/* NOTE CARD */
-.note-item {
-  background: white;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e5e5ea;
-  margin: 0;
-  border-radius: 0;
+/* SEARCH */
+.search {
+  margin:10px;
+  padding:10px;
+  width:calc(100% - 20px);
+  border-radius:10px;
+  border:none;
+  background:#e5e5ea;
 }
 
-.note-item:first-child {
-  border-top-left-radius: 12px;
-  border-top-right-radius: 12px;
-}
-
-.note-item:last-child {
-  border-bottom-left-radius: 12px;
-  border-bottom-right-radius: 12px;
-  border-bottom: none;
-}
-
+/* NOTES CONTAINER */
 #notes {
   margin: 10px 12px;
   border-radius: 12px;
   overflow: hidden;
   background: white;
 }
-  
 
-.note-title {
-  font-size: 17px;
-  font-weight: 500;
-}
-
-.note-preview {
-  font-size: 14px;
-  color: #6e6e73;
-  margin-top: 2px;
-}
-
-/* EDITOR */
-textarea {
-  width: 100%;
-  height: 80vh;
-  border: none;
-  outline: none;
-  font-size: 18px;
-  padding: 16px;
-  line-height: 1.6;
+/* NOTE */
+.note-item {
   background: white;
+  padding: 12px 16px;
+  border-bottom: 1px solid #e5e5ea;
+  transition: 0.2s;
 }
+
+.note-item:active {
+  transform: scale(0.97);
+  background:#f2f2f2;
+}
+
+.note-title { font-size:17px; font-weight:500; }
+.note-preview { font-size:14px; color:#6e6e73; }
 
 /* FLOAT BUTTON */
 .fab {
@@ -83,62 +66,42 @@ textarea {
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:28px;
 }
 
-/* ===== FIXED VIEW SYSTEM ===== */
-.view {
-  display:none;
-  animation: fadeIn 0.25s ease;
+/* VIEW */
+.view { display:none; }
+.view.active { display:block; }
+
+/* EDITOR */
+textarea {
+  width:100%;
+  height:80vh;
+  border:none;
+  outline:none;
+  font-size:18px;
+  padding:16px;
 }
 
-.view.active {
-  display:block;
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-    transform: translateX(10px);
-  }
-  to {
-    opacity: 1;
-    transform: translateX(0);
-  }
-}
-
-/* Tap feedback */
-
-
-.note-item:active {
-  transform: scale(0.97);
-  background: #f2f2f2;
-}  
-
+/* TOPBAR */
 .topbar {
-  display: flex;
-  justify-content: space-between;
-  padding: 10px 12px;
-  background: rgba(255,255,255,0.9);
+  display:flex;
+  justify-content:space-between;
+  padding:10px;
+  background:rgba(255,255,255,0.9);
   backdrop-filter: blur(10px);
-  border-bottom: 1px solid #ddd;
 }
 
+/* BUTTON */
 button {
-  background: none;
-  border: none;
-  font-size: 16px;
+  background:none;
+  border:none;
+  font-size:16px;
 }
-
-button:active {
-  opacity: 0.5;
-}  
-
-  
+button:active { opacity:0.5; }
 </style>
 </head>
 
@@ -154,38 +117,42 @@ button:active {
 <!-- LIST -->
 <div id="list" class="view">
   <div class="header">Notes</div>
-  <input id="search" placeholder="Search" 
-style="margin:10px;padding:10px;width:90%;border-radius:10px;border:none;">
-  <button onclick="createNote()">+ New</button>
+  <input id="search" class="search" placeholder="Search">
   <div id="notes"></div>
   <div class="fab" onclick="createNote()">+</div>
 </div>
 
 <!-- EDITOR -->
 <div id="editorView" class="view">
-  <button onclick="back()">← Back</button>
-  <button onclick="pinNote()">📌</button>
-  <button onclick="deleteNote()">Delete</button>
-  <button onclick="addChecklist()">☑️</button>
-  <div id="time"></div>
+  <div class="topbar">
+    <button onclick="back()">Notes</button>
+    <div>
+      <button onclick="addChecklist()">☑️</button>
+      <button onclick="pinNote()">📌</button>
+      <button onclick="deleteNote()">🗑️</button>
+    </div>
+  </div>
+  <div id="time" style="padding:10px;color:gray;"></div>
   <textarea id="editor"></textarea>
 </div>
 
 <script>
 const PIN="1234";
-let db,currentId;
-  document.addEventListener('touchstart', ()=>{}, {passive:true});
+let db,currentId,startX=0;
 
-// ===== UNLOCK =====
+// TOUCH FIX
+document.addEventListener('touchstart', ()=>{}, {passive:true});
+
+// UNLOCK
 function unlock(){
   if(pin.value===PIN){
-    document.getElementById("lock").style.display="none";
-    document.getElementById("list").classList.add("active");
+    lock.style.display="none";
+    list.classList.add("active");
     init();
-  } else alert("Wrong PIN");
+  }
 }
 
-// ===== DB =====
+// DB
 function init(){
   const req=indexedDB.open("DB",1);
 
@@ -200,206 +167,165 @@ function init(){
   };
 }
 
-// ===== CREATE =====
+// CREATE
 function createNote(){
-  const tx = db.transaction("notes","readwrite");
-  const store = tx.objectStore("notes");
+  const req=db.transaction("notes","readwrite")
+    .objectStore("notes")
+    .add({text:"New Note",time:Date.now(),pinned:false});
 
-  const req = store.add({
-    text: "New Note",
-    time: Date.now(),
-    pinned: false
-  });
-
-  req.onsuccess = (e) => {
-    const id = e.target.result;
-
-    // open immediately
-    openEditor({
-      id: id,
-      text: "New Note",
-      time: Date.now()
-    });
+  req.onsuccess=e=>{
+    openEditor({id:e.target.result,text:"New Note",time:Date.now()});
   };
 }
 
-// ===== LOAD =====
+// LOAD
 function load(){
   notes.innerHTML="";
-
-  let pinned = [];
-  let normal = [];
+  let pinned=[],normal=[];
 
   db.transaction("notes").objectStore("notes")
   .openCursor().onsuccess=e=>{
     const c=e.target.result;
-
     if(c){
-      if(c.value.pinned) pinned.push(c.value);
-      else normal.push(c.value);
+      c.value.pinned?pinned.push(c.value):normal.push(c.value);
       c.continue();
     } else {
-      // sort by latest
-      pinned.sort((a,b)=>b.time-a.time);
-      normal.sort((a,b)=>b.time-a.time);
-
-      renderSection("Pinned", pinned);
-      renderSection("Notes", normal);
+      render("Pinned",pinned);
+      render("Notes",normal);
     }
   };
 }
 
-function renderSection(title, data){
-  if(data.length===0) return;
+// RENDER
+function render(title,data){
+  if(!data.length) return;
 
-  const header = document.createElement("div");
-  header.style.padding="10px 16px";
-  header.style.fontSize="13px";
-  header.style.color="gray";
-  header.innerText = title;
-
-  notes.appendChild(header);
+  const h=document.createElement("div");
+  h.style.padding="10px";
+  h.style.color="gray";
+  h.innerText=title;
+  notes.appendChild(h);
 
   data.forEach(n=>{
     const div=document.createElement("div");
     div.className="note-item";
 
-    const text = n.text;
-    const lines = text.split("\n");
-
-    const t = lines[0] || "New Note";
-    const preview = lines.slice(1).join(" ").substring(0,50);
-
+    const lines=n.text.split("\n");
     div.innerHTML=`
-      <div class="note-title">${t}</div>
-      <div class="note-preview">${preview}</div>
+      <div class="note-title">${lines[0]}</div>
+      <div class="note-preview">${lines.slice(1).join(" ").substring(0,50)}</div>
     `;
 
-    div.ontouchstart = () => openEditor(n);
-    div.onclick = () => openEditor(n);
+    // OPEN
+    div.onclick=()=>openEditor(n);
+
+    // SWIPE DELETE
+    div.addEventListener("touchstart",e=>{
+      startX=e.touches[0].clientX;
+    });
+
+    div.addEventListener("touchmove",e=>{
+      let diff=e.touches[0].clientX-startX;
+      if(diff<0){
+        div.style.transform=`translateX(${diff}px)`;
+        div.style.background="#ff3b30";
+      }
+    });
+
+    div.addEventListener("touchend",e=>{
+      let diff=e.changedTouches[0].clientX-startX;
+      if(diff<-100){
+        deleteById(n.id);
+      } else {
+        div.style.transform="translateX(0)";
+        div.style.background="white";
+      }
+    });
+
+    // LONG PRESS
+    let timer;
+    div.addEventListener("touchstart",()=>{
+      timer=setTimeout(()=>deleteById(n.id),600);
+    });
+    div.addEventListener("touchend",()=>clearTimeout(timer));
 
     notes.appendChild(div);
   });
-} 
+}
 
-// ===== OPEN =====
+// OPEN
 function openEditor(note){
-  currentId = note.id;
-
-  editor.value = note.text;
-  time.innerText = new Date(note.time).toLocaleString();
+  currentId=note.id;
+  editor.value=note.text;
+  time.innerText=new Date(note.time).toLocaleString();
 
   list.classList.remove("active");
   editorView.classList.add("active");
 
-  //  mobile fix
-  setTimeout(() => {
-    editor.focus();
-    editor.setSelectionRange(editor.value.length, editor.value.length);
-  }, 100);
+  setTimeout(()=>editor.focus(),100);
 }
 
+// AUTOSAVE
 let saveTimeout;
-
-editor.addEventListener("input", () => {
-  if (!currentId) return;
-
+editor.addEventListener("input",()=>{
   clearTimeout(saveTimeout);
-
-  saveTimeout = setTimeout(() => {
-    const tx = db.transaction("notes", "readwrite");
-    const store = tx.objectStore("notes");
-
-    store.get(currentId).onsuccess = (e) => {
-      const note = e.target.result;
-
-      store.put({
-        ...note,
-        text: editor.value,
-        time: Date.now()
-      });
+  saveTimeout=setTimeout(()=>{
+    const store=db.transaction("notes","readwrite").objectStore("notes");
+    store.get(currentId).onsuccess=e=>{
+      let n=e.target.result;
+      store.put({...n,text:editor.value,time:Date.now()});
     };
-  }, 300); // debounce like real apps
+  },300);
 });
 
- let startX = 0;
-
-editorView.addEventListener("touchstart", e=>{
-  startX = e.touches[0].clientX;
-});
-
-editorView.addEventListener("touchmove", e=>{
-  let diff = e.touches[0].clientX - startX;
-
-  if(diff > 100){
-    back();
-  }
-}); 
-
-// ===== BACK =====
+// BACK
 function back(){
-  if (!editor.value.trim()) {
+  if(!editor.value.trim()){
     db.transaction("notes","readwrite")
-      .objectStore("notes")
-      .delete(currentId);
+      .objectStore("notes").delete(currentId);
   }
-
   editorView.classList.remove("active");
   list.classList.add("active");
-
   load();
 }
 
-// ===== DELETE =====
+// DELETE
 function deleteNote(){
-  db.transaction("notes","readwrite")
-  .objectStore("notes")
-  .delete(currentId);
-
+  deleteById(currentId);
   back();
 }
 
-// ===== PIN =====
-function pinNote(){
-  const tx=db.transaction("notes","readwrite");
-  const store=tx.objectStore("notes");
+function deleteById(id){
+  db.transaction("notes","readwrite")
+    .objectStore("notes").delete(id);
+  load();
+}
 
+// PIN
+function pinNote(){
+  const store=db.transaction("notes","readwrite").objectStore("notes");
   store.get(currentId).onsuccess=e=>{
-    const note=e.target.result;
-    note.pinned=!note.pinned;
-    store.put(note);
+    let n=e.target.result;
+    n.pinned=!n.pinned;
+    store.put(n);
     back();
   };
 }
 
- search.addEventListener("input", () => {
-  const value = search.value.toLowerCase();
-
-  const items = document.querySelectorAll(".note-item");
-
-  items.forEach(item=>{
-    item.style.display = item.innerText.toLowerCase().includes(value)
-      ? "block"
-      : "none";
+// SEARCH
+document.getElementById("search").addEventListener("input",function(){
+  let v=this.value.toLowerCase();
+  document.querySelectorAll(".note-item").forEach(n=>{
+    n.style.display=n.innerText.toLowerCase().includes(v)?"block":"none";
   });
-}); 
+});
 
- function addChecklist(){
-  const cursor = editor.selectionStart;
-
-  const text = editor.value;
-
-  const updated =
-    text.slice(0, cursor) +
-    "\n☐ " +
-    text.slice(cursor);
-
-  editor.value = updated;
-
-  editor.focus();
+// CHECKLIST
+function addChecklist(){
+  const pos=editor.selectionStart;
+  editor.value=
+    editor.value.slice(0,pos)+"\n☐ "+editor.value.slice(pos);
 }
-
-  
 </script>
 
 </body>
