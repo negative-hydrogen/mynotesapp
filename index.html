@@ -95,6 +95,13 @@ textarea {
   backdrop-filter: blur(10px);
 }
 
+ #editor {
+  padding:16px;
+  min-height:80vh;
+  outline:none;
+  font-size:18px;
+} 
+
 /* BUTTON */
 button {
   background:none;
@@ -125,6 +132,14 @@ button:active { opacity:0.5; }
 <!-- EDITOR -->
 <div id="editorView" class="view">
   <div class="topbar">
+    <select id="folderSelect" onchange="changeFolder()">
+  <option>Notes</option>
+  <option>Work</option>
+  <option>Personal</option>
+</select>
+    <button onclick="format('bold')">B</button>
+<button onclick="format('italic')">I</button>
+<button onclick="format('underline')">U</button>
     <button onclick="back()">Notes</button>
     <div>
       <button onclick="addChecklist()">☑️</button>
@@ -133,7 +148,7 @@ button:active { opacity:0.5; }
     </div>
   </div>
   <div id="time" style="padding:10px;color:gray;"></div>
-  <textarea id="editor"></textarea>
+  <div id="editor" contenteditable="true"></div>
 </div>
 
 <script>
@@ -171,7 +186,7 @@ function init(){
 function createNote(){
   const req=db.transaction("notes","readwrite")
     .objectStore("notes")
-    .add({text:"New Note",time:Date.now(),pinned:false});
+    .add({text:"New Note",time:Date.now(),pinned:false,folder:"Notes"});
 
   req.onsuccess=e=>{
     openEditor({id:e.target.result,text:"New Note",time:Date.now()});
@@ -181,11 +196,15 @@ function createNote(){
 // LOAD
 function load(){
   notes.innerHTML="";
+  let currentFolder="Notes";
   let pinned=[],normal=[];
 
   db.transaction("notes").objectStore("notes")
   .openCursor().onsuccess=e=>{
     const c=e.target.result;
+    if(c.value.folder===currentFolder){
+  c.value.pinned?pinned.push(c.value):normal.push(c.value);
+}
     if(c){
       c.value.pinned?pinned.push(c.value):normal.push(c.value);
       c.continue();
@@ -256,7 +275,7 @@ function render(title,data){
 // OPEN
 function openEditor(note){
   currentId=note.id;
-  editor.value=note.text;
+  editor.innerHTML=note.text;
   time.innerText=new Date(note.time).toLocaleString();
 
   list.classList.remove("active");
@@ -326,6 +345,24 @@ function addChecklist(){
   editor.value=
     editor.value.slice(0,pos)+"\n☐ "+editor.value.slice(pos);
 }
+
+//changeFolder
+ function changeFolder(){
+  const store=db.transaction("notes","readwrite").objectStore("notes");
+
+  store.get(currentId).onsuccess=e=>{
+    let n=e.target.result;
+    n.folder=document.getElementById("folderSelect").value;
+    store.put(n);
+  };
+} 
+
+//format
+
+ function format(cmd){
+  document.execCommand(cmd,false,null);
+} 
+  
 </script>
 
 </body>
