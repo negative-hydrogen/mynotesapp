@@ -9,31 +9,48 @@
 <style>
 body {
   margin:0;
-  font-family: -apple-system;
+  font-family:-apple-system;
   background:#f2f2f7;
 }
 
-header {
+/* HEADER */
+.header {
   padding:15px;
   font-size:22px;
   font-weight:bold;
 }
 
-.note {
+/* LIST */
+.note-item {
   background:white;
-  margin:10px;
   padding:15px;
-  border-radius:12px;
+  border-bottom:1px solid #ddd;
+}
+
+.note-title {
+  font-weight:bold;
+}
+
+.note-preview {
+  color:gray;
+  font-size:14px;
+}
+
+/* EDIT SCREEN */
+.editor {
+  display:none;
 }
 
 textarea {
   width:100%;
-  height:200px;
+  height:80vh;
   border:none;
   outline:none;
-  font-size:16px;
+  font-size:18px;
+  padding:10px;
 }
 
+/* BUTTON */
 button {
   padding:10px;
   margin:10px;
@@ -43,18 +60,25 @@ button {
 
 <body>
 
-<!-- LOCK SCREEN -->
+<!-- LOCK -->
 <div id="lockScreen">
   <h2 style="text-align:center;margin-top:50px;">Enter PIN</h2>
   <input type="password" id="pin" style="display:block;margin:auto;padding:10px;">
   <button onclick="unlock()" style="display:block;margin:10px auto;">Unlock</button>
 </div>
 
-<!-- APP -->
-<div id="app" style="display:none;">
-  <header>Notes</header>
-  <button onclick="newNote()">+ New Note</button>
-  <div id="notes"></div>
+<!-- LIST VIEW -->
+<div id="listView" style="display:none;">
+  <div class="header">Notes</div>
+  <button onclick="createNote()">+ New Note</button>
+  <div id="notesList"></div>
+</div>
+
+<!-- EDIT VIEW -->
+<div id="editView" class="editor">
+  <button onclick="goBack()">← Back</button>
+  <button onclick="deleteNote()">Delete</button>
+  <textarea id="editor"></textarea>
 </div>
 
 <script>
@@ -62,90 +86,115 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }
 
-// ===== PASSWORD =====
+// ===== PIN =====
 const PIN = "1234";
 
 function unlock() {
   if (document.getElementById('pin').value === PIN) {
-    document.getElementById('lockScreen').style.display = 'none';
-    document.getElementById('app').style.display = 'block';
+    document.getElementById('lockScreen').style.display='none';
+    document.getElementById('listView').style.display='block';
     init();
   } else {
     alert("Wrong PIN");
   }
 }
 
-// ===== DATABASE =====
-let db;
+// ===== DB =====
+let db, currentId=null;
 
 function initDB() {
-  return new Promise((resolve) => {
-    const req = indexedDB.open("NotesDB", 1);
+  return new Promise(res=>{
+    const req = indexedDB.open("NotesDB",1);
 
-    req.onupgradeneeded = e => {
+    req.onupgradeneeded = e=>{
       db = e.target.result;
-      db.createObjectStore("notes", { keyPath: "id", autoIncrement:true });
+      db.createObjectStore("notes",{keyPath:"id",autoIncrement:true});
     };
 
-    req.onsuccess = e => {
+    req.onsuccess = e=>{
       db = e.target.result;
-      resolve();
+      res();
     };
   });
 }
 
-// ===== INIT =====
-async function init() {
+async function init(){
   await initDB();
-  renderNotes();
+  renderList();
 }
 
-// ===== CREATE NOTE =====
-function newNote() {
-  const tx = db.transaction("notes", "readwrite");
-  const store = tx.objectStore("notes");
-
-  store.add({
-    text: "New Note"
-  });
-
-  tx.oncomplete = renderNotes;
+// ===== CREATE =====
+function createNote(){
+  const tx = db.transaction("notes","readwrite");
+  tx.objectStore("notes").add({text:"New Note"});
+  tx.oncomplete = renderList;
 }
 
-// ===== LOAD + DISPLAY =====
-function renderNotes() {
-  const container = document.getElementById('notes');
-  container.innerHTML = "";
+// ===== LIST =====
+function renderList(){
+  const list = document.getElementById("notesList");
+  list.innerHTML="";
 
-  const tx = db.transaction("notes", "readonly");
+  const tx = db.transaction("notes","readonly");
   const store = tx.objectStore("notes");
 
-  store.openCursor().onsuccess = e => {
+  store.openCursor().onsuccess = e=>{
     const cursor = e.target.result;
 
-    if (cursor) {
-      const noteDiv = document.createElement('div');
-      noteDiv.className = "note";
+    if(cursor){
+      const div = document.createElement("div");
+      div.className="note-item";
 
-      const textarea = document.createElement('textarea');
-      textarea.value = cursor.value.text;
+      const text = cursor.value.text;
+      const title = text.split("\n")[0] || "New Note";
 
-      textarea.oninput = () => {
-        const tx2 = db.transaction("notes", "readwrite");
-        const store2 = tx2.objectStore("notes");
+      div.innerHTML = `
+        <div class="note-title">${title}</div>
+        <div class="note-preview">${text.substring(0,40)}</div>
+      `;
 
-        store2.put({
-          id: cursor.value.id,
-          text: textarea.value
-        });
+      div.onclick = ()=>{
+        openNote(cursor.value.id, text);
       };
 
-      noteDiv.appendChild(textarea);
-      container.appendChild(noteDiv);
-
+      list.appendChild(div);
       cursor.continue();
     }
   };
+}
+
+// ===== OPEN =====
+function openNote(id,text){
+  currentId=id;
+  document.getElementById("listView").style.display="none";
+  document.getElementById("editView").style.display="block";
+  document.getElementById("editor").value=text;
+}
+
+// ===== SAVE =====
+document.getElementById("editor").addEventListener("input",()=>{
+  const tx = db.transaction("notes","readwrite");
+  tx.objectStore("notes").put({
+    id:currentId,
+    text:document.getElementById("editor").value
+  });
+});
+
+// ===== BACK =====
+function goBack(){
+  document.getElementById("editView").style.display="none";
+  document.getElementById("listView").style.display="block";
+  renderList();
+}
+
+// ===== DELETE =====
+function deleteNote(){
+  if(!confirm("Delete note?")) return;
+
+  const tx = db.transaction("notes","readwrite");
+  tx.objectStore("notes").delete(currentId);
+
+  goBack();
 }
 </script>
 
