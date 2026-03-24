@@ -16,46 +16,49 @@ body {
 
 /* SIDEBAR */
 .sidebar {
-  width: 250px;
+  width: 260px;
   background: #fff;
   border-right: 1px solid #ddd;
-  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
 }
 
+.sidebar h2 {
+  padding: 15px;
+  margin: 0;
+  font-size: 18px;
+}
+
+/* FOLDERS */
 .folder {
-  padding: 12px;
+  padding: 12px 15px;
   cursor: pointer;
 }
-.folder.active { background: #e5e5ea; }
+.folder.active {
+  background: #e5e5ea;
+}
 
 /* MAIN */
 .main {
   flex: 1;
   display: flex;
-  flex-direction: column;
-}
-
-/* TOP BAR */
-.topbar {
-  display: flex;
-  gap: 10px;
-  padding: 10px;
-  background: #fff;
-  border-bottom: 1px solid #ddd;
-}
-
-button {
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  cursor: pointer;
+  position: relative;
 }
 
 /* NOTES LIST */
-.notes-list {
-  flex: 1;
-  overflow-y: auto;
+.notes-panel {
+  width: 320px;
   background: #fff;
+  border-right: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  gap: 10px;
 }
 
 .note-item {
@@ -63,24 +66,63 @@ button {
   border-bottom: 1px solid #eee;
   cursor: pointer;
 }
+.note-item:hover {
+  background: #f2f2f7;
+}
 
 /* EDITOR */
-.editor-container {
-  display: none;
+.editor-panel {
   flex: 1;
-  flex-direction: column;
   background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.editor-topbar {
+  padding: 10px;
+  border-bottom: 1px solid #ddd;
+  display: flex;
+  gap: 10px;
 }
 
 .editor {
   flex: 1;
   padding: 20px;
   outline: none;
+  font-size: 16px;
 }
 
-/* BACK BUTTON */
-.back-btn {
-  font-weight: bold;
+/* MOBILE */
+@media(max-width:768px) {
+  .sidebar { display:none; }
+
+  .notes-panel {
+    width: 100%;
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    transition: transform 0.3s;
+    z-index: 2;
+  }
+
+  .editor-panel {
+    position: absolute;
+    width: 100%;
+    top: 0;
+    bottom: 0;
+    left: 100%;
+    transition: transform 0.3s;
+    z-index: 3;
+  }
+
+  .show-editor .notes-panel {
+    transform: translateX(-100%);
+  }
+
+  .show-editor .editor-panel {
+    transform: translateX(-100%);
+  }
 }
 </style>
 </head>
@@ -88,24 +130,27 @@ button {
 <body>
 
 <!-- SIDEBAR -->
-<div class="sidebar" id="folders"></div>
+<div class="sidebar">
+  <h2>Folders</h2>
+  <div id="folders"></div>
+</div>
 
 <!-- MAIN -->
-<div class="main">
+<div class="main" id="main">
 
-  <!-- LIST VIEW -->
-  <div id="listView">
+  <!-- NOTES LIST -->
+  <div class="notes-panel">
     <div class="topbar">
       <input id="search" placeholder="Search..." oninput="searchNotes()">
       <button onclick="addNote()">New</button>
     </div>
-    <div class="notes-list" id="notesList"></div>
+    <div id="notesList"></div>
   </div>
 
-  <!-- EDITOR VIEW -->
-  <div class="editor-container" id="editorView">
-    <div class="topbar">
-      <button class="back-btn" onclick="goBack()">← Notes</button>
+  <!-- EDITOR -->
+  <div class="editor-panel">
+    <div class="editor-topbar">
+      <button onclick="goBack()">← Notes</button>
       <button onclick="deleteNote()">Delete</button>
     </div>
     <div class="editor" id="editor" contenteditable="true"></div>
@@ -126,21 +171,6 @@ function save() {
   localStorage.setItem("notesApp", JSON.stringify(data));
 }
 
-/* SWITCH VIEWS */
-function openEditor(note) {
-  currentNote = note;
-
-  document.getElementById("editor").innerText = note.content;
-
-  document.getElementById("listView").style.display = "none";
-  document.getElementById("editorView").style.display = "flex";
-}
-
-function goBack() {
-  document.getElementById("listView").style.display = "block";
-  document.getElementById("editorView").style.display = "none";
-}
-
 /* RENDER NOTES */
 function renderNotes(filtered = null) {
   let list = document.getElementById("notesList");
@@ -151,12 +181,25 @@ function renderNotes(filtered = null) {
   notes.forEach(note => {
     let div = document.createElement("div");
     div.className = "note-item";
-    div.innerText = note.content.slice(0, 30) || "New Note";
+    div.innerText = note.content.slice(0, 40) || "New Note";
 
     div.onclick = () => openEditor(note);
 
     list.appendChild(div);
   });
+}
+
+/* OPEN NOTE */
+function openEditor(note) {
+  currentNote = note;
+  document.getElementById("editor").innerText = note.content;
+
+  document.getElementById("main").classList.add("show-editor");
+}
+
+/* BACK */
+function goBack() {
+  document.getElementById("main").classList.remove("show-editor");
 }
 
 /* ADD NOTE */
@@ -169,7 +212,6 @@ function addNote() {
   data.notes.unshift(note);
   save();
   renderNotes();
-
   openEditor(note);
 }
 
