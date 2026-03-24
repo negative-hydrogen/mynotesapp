@@ -121,11 +121,25 @@ function init(){
 
 // ===== CREATE =====
 function createNote(){
-  db.transaction("notes","readwrite")
-  .objectStore("notes")
-  .add({text:"New Note",time:Date.now(),pinned:false});
+  const tx = db.transaction("notes","readwrite");
+  const store = tx.objectStore("notes");
 
-  setTimeout(load,100);
+  const req = store.add({
+    text: "New Note",
+    time: Date.now(),
+    pinned: false
+  });
+
+  req.onsuccess = (e) => {
+    const id = e.target.result;
+
+    // open immediately
+    openEditor({
+      id: id,
+      text: "New Note",
+      time: Date.now()
+    });
+  };
 }
 
 // ===== LOAD =====
