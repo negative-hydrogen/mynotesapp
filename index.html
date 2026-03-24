@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Notes</title>
+
+<link rel="manifest" href="manifest.json">
+
+<style>
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont;
+  background: #f2f2f7;
+}
+
+header {
+  padding: 15px;
+  font-size: 22px;
+  font-weight: bold;
+}
+
+.note {
+  background: white;
+  margin: 10px;
+  padding: 15px;
+  border-radius: 12px;
+}
+
+textarea {
+  width: 100%;
+  height: 200px;
+  border: none;
+  outline: none;
+  font-size: 16px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="lockScreen">
+  <h2 style="text-align:center;margin-top:50px;">Enter Password</h2>
+  <input type="password" id="pass" style="display:block;margin:auto;padding:10px;">
+  <button onclick="unlock()" style="display:block;margin:10px auto;">Unlock</button>
+</div>
+
+<div id="app" style="display:none;">
+  <header>Notes</header>
+  <div class="note">
+    <textarea id="note"></textarea>
+  </div>
+</div>
+
+<script>
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js');
+}
+
+// password
+const savedPass = localStorage.getItem('app_pass') || "1234";
+
+function unlock() {
+  const val = document.getElementById('pass').value;
+  if (val === savedPass) {
+    document.getElementById('lockScreen').style.display = 'none';
+    document.getElementById('app').style.display = 'block';
+    load();
+  } else {
+    alert("Wrong password");
+  }
+}
+
+// IndexedDB
+let db;
+
+function initDB() {
+  return new Promise((res, rej) => {
+    const req = indexedDB.open("NotesDB", 1);
+
+    req.onupgradeneeded = e => {
+      db = e.target.result;
+      db.createObjectStore("notes", { keyPath: "id" });
+    };
+
+    req.onsuccess = e => {
+      db = e.target.result;
+      res();
+    };
+  });
+}
+
+async function load() {
+  await initDB();
+  const tx = db.transaction("notes", "readonly");
+  const store = tx.objectStore("notes");
+  const req = store.get(1);
+
+  req.onsuccess = () => {
+    if (req.result) {
+      document.getElementById('note').value = req.result.text;
+    }
+  };
+}
+
+document.getElementById('note').addEventListener('input', () => {
+  const tx = db.transaction("notes", "readwrite");
+  const store = tx.objectStore("notes");
+
+  store.put({
+    id: 1,
+    text: document.getElementById('note').value
+  });
+});
+</script>
+
+</body>
+</html>
