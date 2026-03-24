@@ -1,7 +1,6 @@
 <!DOCTYPE html>
-<html lang="en">
+<html>
 <head>
-<meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Notes</title>
 
@@ -9,47 +8,53 @@
 
 <style>
 body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont;
-  background: #f2f2f7;
+  margin:0;
+  font-family: -apple-system;
+  background:#f2f2f7;
 }
 
 header {
-  padding: 15px;
-  font-size: 22px;
-  font-weight: bold;
+  padding:15px;
+  font-size:22px;
+  font-weight:bold;
 }
 
 .note {
-  background: white;
-  margin: 10px;
-  padding: 15px;
-  border-radius: 12px;
+  background:white;
+  margin:10px;
+  padding:15px;
+  border-radius:12px;
 }
 
 textarea {
-  width: 100%;
-  height: 200px;
-  border: none;
-  outline: none;
-  font-size: 16px;
+  width:100%;
+  height:200px;
+  border:none;
+  outline:none;
+  font-size:16px;
+}
+
+button {
+  padding:10px;
+  margin:10px;
 }
 </style>
 </head>
 
 <body>
 
+<!-- LOCK SCREEN -->
 <div id="lockScreen">
-  <h2 style="text-align:center;margin-top:50px;">Enter Password</h2>
-  <input type="password" id="pass" style="display:block;margin:auto;padding:10px;">
+  <h2 style="text-align:center;margin-top:50px;">Enter PIN</h2>
+  <input type="password" id="pin" style="display:block;margin:auto;padding:10px;">
   <button onclick="unlock()" style="display:block;margin:10px auto;">Unlock</button>
 </div>
 
+<!-- APP -->
 <div id="app" style="display:none;">
   <header>Notes</header>
-  <div class="note">
-    <textarea id="note"></textarea>
-  </div>
+  <button onclick="newNote()">+ New Note</button>
+  <div id="notes"></div>
 </div>
 
 <script>
@@ -57,61 +62,91 @@ if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js');
 }
 
-// password
-const savedPass = localStorage.getItem('app_pass') || "1234";
+// ===== PASSWORD =====
+const PIN = "1234";
 
 function unlock() {
-  const val = document.getElementById('pass').value;
-  if (val === savedPass) {
+  if (document.getElementById('pin').value === PIN) {
     document.getElementById('lockScreen').style.display = 'none';
     document.getElementById('app').style.display = 'block';
-    load();
+    init();
   } else {
-    alert("Wrong password");
+    alert("Wrong PIN");
   }
 }
 
-// IndexedDB
+// ===== DATABASE =====
 let db;
 
 function initDB() {
-  return new Promise((res, rej) => {
+  return new Promise((resolve) => {
     const req = indexedDB.open("NotesDB", 1);
 
     req.onupgradeneeded = e => {
       db = e.target.result;
-      db.createObjectStore("notes", { keyPath: "id" });
+      db.createObjectStore("notes", { keyPath: "id", autoIncrement:true });
     };
 
     req.onsuccess = e => {
       db = e.target.result;
-      res();
+      resolve();
     };
   });
 }
 
-async function load() {
+// ===== INIT =====
+async function init() {
   await initDB();
-  const tx = db.transaction("notes", "readonly");
-  const store = tx.objectStore("notes");
-  const req = store.get(1);
-
-  req.onsuccess = () => {
-    if (req.result) {
-      document.getElementById('note').value = req.result.text;
-    }
-  };
+  renderNotes();
 }
 
-document.getElementById('note').addEventListener('input', () => {
+// ===== CREATE NOTE =====
+function newNote() {
   const tx = db.transaction("notes", "readwrite");
   const store = tx.objectStore("notes");
 
-  store.put({
-    id: 1,
-    text: document.getElementById('note').value
+  store.add({
+    text: "New Note"
   });
-});
+
+  tx.oncomplete = renderNotes;
+}
+
+// ===== LOAD + DISPLAY =====
+function renderNotes() {
+  const container = document.getElementById('notes');
+  container.innerHTML = "";
+
+  const tx = db.transaction("notes", "readonly");
+  const store = tx.objectStore("notes");
+
+  store.openCursor().onsuccess = e => {
+    const cursor = e.target.result;
+
+    if (cursor) {
+      const noteDiv = document.createElement('div');
+      noteDiv.className = "note";
+
+      const textarea = document.createElement('textarea');
+      textarea.value = cursor.value.text;
+
+      textarea.oninput = () => {
+        const tx2 = db.transaction("notes", "readwrite");
+        const store2 = tx2.objectStore("notes");
+
+        store2.put({
+          id: cursor.value.id,
+          text: textarea.value
+        });
+      };
+
+      noteDiv.appendChild(textarea);
+      container.appendChild(noteDiv);
+
+      cursor.continue();
+    }
+  };
+}
 </script>
 
 </body>
