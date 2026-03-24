@@ -240,26 +240,19 @@ function renderSection(title, data){
 function openEditor(note){
   currentId = note.id;
 
-  document.getElementById("editor").value = note.text;
-  document.getElementById("time").innerText =
-    "Edited: " + new Date(note.time).toLocaleString();
-
-  const list = document.getElementById("list");
-  const editor = document.getElementById("editorView");
+  editor.value = note.text;
+  time.innerText = "Edited: " + new Date(note.time).toLocaleString();
 
   list.classList.remove("active");
   list.classList.add("hidden-left");
 
-  editor.classList.remove("hidden-right");
-  editor.classList.add("active");
+  editorView.classList.remove("hidden-right");
+  editorView.classList.add("active");
 }
 
 function back(){
-  const list = document.getElementById("list");
-  const editor = document.getElementById("editorView");
-
-  editor.classList.remove("active");
-  editor.classList.add("hidden-right");
+  editorView.classList.remove("active");
+  editorView.classList.add("hidden-right");
 
   list.classList.remove("hidden-left");
   list.classList.add("active");
