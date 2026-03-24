@@ -186,6 +186,24 @@ function openEditor(note){
   }, 100);
 }
 
+editor.addEventListener("input", () => {
+  if (!currentId) return;
+
+  const tx = db.transaction("notes", "readwrite");
+  const store = tx.objectStore("notes");
+
+  store.get(currentId).onsuccess = (e) => {
+    const note = e.target.result;
+
+    store.put({
+      id: currentId,
+      text: editor.value,
+      time: Date.now(),
+      pinned: note.pinned
+    });
+  };
+});
+
 // ===== BACK =====
 function back(){
   editorView.classList.remove("active");
