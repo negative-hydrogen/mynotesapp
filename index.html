@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html>
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>Notes</title>
 
 <style>
@@ -160,7 +160,8 @@ function load(){
         <div class="note-title">${text.split("\n")[0]}</div>
         <div class="note-preview">${text.substring(0,50)}</div>
       `;
-
+      
+      div.ontouchstart = () => openEditor(c.value);
       div.onclick=()=>openEditor(c.value);
 
       notes.appendChild(div);
@@ -178,6 +179,11 @@ function openEditor(note){
 
   list.classList.remove("active");
   editorView.classList.add("active");
+
+  //  mobile fix
+  setTimeout(() => {
+    editor.focus();
+  }, 100);
 }
 
 // ===== BACK =====
