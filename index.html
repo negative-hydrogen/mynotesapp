@@ -9,6 +9,7 @@ body {
   margin:0;
   font-family:-apple-system;
   background:#f2f2f7;
+  -webkit-overflow-scrolling: touch;
 }
 
 /* HEADER */
@@ -24,10 +25,11 @@ body {
 
 /* NOTE CARD */
 .note-item {
-  background:white;
-  margin:10px;
-  padding:14px;
-  border-radius:12px;
+  border-radius: 12px;
+  margin: 8px 12px;
+  padding: 14px;
+  background: white;
+  transition: all 0.2s ease;
 }
 
 .note-title { font-weight:bold; }
@@ -35,6 +37,7 @@ body {
 
 /* EDITOR */
 textarea {
+  line-height: 1.5;
   width:100%;
   height:75vh;
   border:none;
@@ -80,13 +83,11 @@ textarea {
 }
 
 /* Tap feedback */
-.note-item {
-  transition: transform 0.15s ease, background 0.2s;
-}
+
 
 .note-item:active {
   transform: scale(0.97);
-  background: #f0f0f0;
+  background: #f2f2f2;
 }  
 
   
@@ -122,6 +123,7 @@ textarea {
 <script>
 const PIN="1234";
 let db,currentId;
+  document.addEventListener('touchstart', ()=>{}, {passive:true});
 
 // ===== UNLOCK =====
 function unlock(){
@@ -174,37 +176,55 @@ function createNote(){
 function load(){
   notes.innerHTML="";
 
+  let all = [];
+
   db.transaction("notes").objectStore("notes")
   .openCursor().onsuccess=e=>{
     const c=e.target.result;
 
     if(c){
-      const div=document.createElement("div");
-      div.className="note-item";
-
-      const text=c.value.text;
-
-      div.innerHTML=`
-        <div class="note-title">${text.split("\n")[0]}</div>
-        <div class="note-preview">${text.substring(0,50)}</div>
-      `;
-      
-      div.ontouchstart = () => openEditor(c.value);
-      div.onclick=()=>openEditor(c.value);
-
-      notes.appendChild(div);
+      all.push(c.value);
       c.continue();
-    }
+    } else {
+      // sort: pinned first, then latest
+      all.sort((a,b)=>{
+        if(a.pinned !== b.pinned) return b.pinned - a.pinned;
+        return b.time - a.time;
+      });
 
-    if (!notes.innerHTML) {
-  notes.innerHTML = `
-    <p style="text-align:center;color:gray;margin-top:40px;">
-      No Notes
-    </p>
-  `;
-   }
+      renderSection("Notes", all);
+    }
   };
 }
+
+function renderSection(title, data){
+  if(data.length===0) return;
+
+  data.forEach(n=>{
+    const div=document.createElement("div");
+    div.className="note-item";
+
+    const text = n.text;
+    const lines = text.split("\n");
+
+    const title = lines[0] || "New Note";
+    const preview = lines.slice(1).join(" ").substring(0,50);
+
+    div.innerHTML=`
+      <div class="note-title">${title}</div>
+      <div class="note-preview">${preview}</div>
+      <div style="font-size:12px;color:gray;margin-top:5px;">
+        ${new Date(n.time).toLocaleString()}
+      </div>
+    `;
+
+    // ✅ IMPORTANT (mobile + desktop)
+    div.ontouchstart = () => openEditor(n);
+    div.onclick = () => openEditor(n);
+
+    notes.appendChild(div);
+  });
+}  
 
 // ===== OPEN =====
 function openEditor(note){
@@ -223,28 +243,40 @@ function openEditor(note){
   }, 100);
 }
 
+let saveTimeout;
+
 editor.addEventListener("input", () => {
   if (!currentId) return;
 
-  const tx = db.transaction("notes", "readwrite");
-  const store = tx.objectStore("notes");
+  clearTimeout(saveTimeout);
 
-  store.get(currentId).onsuccess = (e) => {
-    const note = e.target.result;
+  saveTimeout = setTimeout(() => {
+    const tx = db.transaction("notes", "readwrite");
+    const store = tx.objectStore("notes");
 
-    store.put({
-      id: currentId,
-      text: editor.value,
-      time: Date.now(),
-      pinned: note.pinned
-    });
-  };
+    store.get(currentId).onsuccess = (e) => {
+      const note = e.target.result;
+
+      store.put({
+        ...note,
+        text: editor.value,
+        time: Date.now()
+      });
+    };
+  }, 300); // debounce like real apps
 });
 
 // ===== BACK =====
 function back(){
+  if (!editor.value.trim()) {
+    db.transaction("notes","readwrite")
+      .objectStore("notes")
+      .delete(currentId);
+  }
+
   editorView.classList.remove("active");
   list.classList.add("active");
+
   load();
 }
 
