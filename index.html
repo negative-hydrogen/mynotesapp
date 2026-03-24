@@ -144,9 +144,7 @@ textarea {
   z-index: 1;
 }
 
-.active { transform: translateX(0); }
-.hidden-right { transform: translateX(100%); }
-.hidden-left { transform: translateX(-30%); opacity: 0.5; }
+
 </style>
 </head>
 
@@ -159,7 +157,7 @@ textarea {
 </div>
 
 <div id="list" class="view active">
-  <div class="note-item ${c.value.pinned ? 'pinned' : ''}">Notes</div>
+  <div class="header">Notes</div>
   <button onclick="createNote()">+ New</button>
   <div id="notes"></div>
   <div class="fab" onclick="createNote()">+</div>
@@ -259,7 +257,7 @@ function openEditor(note){
   list.classList.remove("active");
   list.classList.add("hidden-left");
 
-  
+  editorView.classList.remove("hidden-left");
   editorView.classList.add("active");
 }
 
