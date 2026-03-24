@@ -4,8 +4,6 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Notes</title>
 
-<link rel="manifest" href="manifest.json">
-
 <style>
 body {
   margin:0;
@@ -13,188 +11,159 @@ body {
   background:#f2f2f7;
 }
 
-/* HEADER */
 .header {
   padding:15px;
   font-size:22px;
   font-weight:bold;
 }
 
-/* LIST */
 .note-item {
   background:white;
   padding:15px;
-  border-bottom:1px solid #ddd;
+  border-bottom:1px solid #eee;
 }
 
-.note-title {
-  font-weight:bold;
-}
-
-.note-preview {
-  color:gray;
-  font-size:14px;
-}
-
-/* EDIT SCREEN */
-.editor {
-  display:none;
-}
+.note-title { font-weight:bold; }
+.note-preview { color:gray; font-size:14px; }
 
 textarea {
   width:100%;
-  height:80vh;
+  height:70vh;
   border:none;
   outline:none;
   font-size:18px;
   padding:10px;
 }
 
-/* BUTTON */
 button {
-  padding:10px;
-  margin:10px;
+  margin:5px;
+  padding:8px;
 }
 </style>
 </head>
 
 <body>
 
-<!-- LOCK -->
-<div id="lockScreen">
+<div id="lock">
   <h2 style="text-align:center;margin-top:50px;">Enter PIN</h2>
-  <input type="password" id="pin" style="display:block;margin:auto;padding:10px;">
-  <button onclick="unlock()" style="display:block;margin:10px auto;">Unlock</button>
+  <input type="password" id="pin">
+  <button onclick="unlock()">Unlock</button>
 </div>
 
-<!-- LIST VIEW -->
-<div id="listView" style="display:none;">
+<div id="list" style="display:none;">
   <div class="header">Notes</div>
-  <button onclick="createNote()">+ New Note</button>
-  <div id="notesList"></div>
+  <button onclick="createNote()">+ New</button>
+  <div id="notes"></div>
 </div>
 
-<!-- EDIT VIEW -->
-<div id="editView" class="editor">
-  <button onclick="goBack()">← Back</button>
+<div id="editorView" style="display:none;">
+  <button onclick="back()">← Back</button>
+  <button onclick="pinNote()">📌</button>
   <button onclick="deleteNote()">Delete</button>
+  <div id="time" style="margin:10px;color:gray;"></div>
   <textarea id="editor"></textarea>
 </div>
 
 <script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('sw.js');
-}
+const PIN="1234";
+let db,currentId;
 
-// ===== PIN =====
-const PIN = "1234";
-
-function unlock() {
-  if (document.getElementById('pin').value === PIN) {
-    document.getElementById('lockScreen').style.display='none';
-    document.getElementById('listView').style.display='block';
+function unlock(){
+  if(pin.value===PIN){
+    lock.style.display="none";
+    list.style.display="block";
     init();
-  } else {
-    alert("Wrong PIN");
-  }
+  } else alert("Wrong PIN");
 }
 
-// ===== DB =====
-let db, currentId=null;
-
-function initDB() {
-  return new Promise(res=>{
-    const req = indexedDB.open("NotesDB",1);
-
-    req.onupgradeneeded = e=>{
-      db = e.target.result;
-      db.createObjectStore("notes",{keyPath:"id",autoIncrement:true});
-    };
-
-    req.onsuccess = e=>{
-      db = e.target.result;
-      res();
-    };
-  });
+function init(){
+  const req=indexedDB.open("DB",1);
+  req.onupgradeneeded=e=>{
+    db=e.target.result;
+    db.createObjectStore("notes",{keyPath:"id",autoIncrement:true});
+  };
+  req.onsuccess=e=>{
+    db=e.target.result;
+    load();
+  };
 }
 
-async function init(){
-  await initDB();
-  renderList();
-}
-
-// ===== CREATE =====
 function createNote(){
-  const tx = db.transaction("notes","readwrite");
-  tx.objectStore("notes").add({text:"New Note"});
-  tx.oncomplete = renderList;
+  db.transaction("notes","readwrite")
+  .objectStore("notes")
+  .add({text:"New Note",time:Date.now(),pinned:false});
+  setTimeout(load,100);
 }
 
-// ===== LIST =====
-function renderList(){
-  const list = document.getElementById("notesList");
-  list.innerHTML="";
-
-  const tx = db.transaction("notes","readonly");
-  const store = tx.objectStore("notes");
-
-  store.openCursor().onsuccess = e=>{
-    const cursor = e.target.result;
-
-    if(cursor){
-      const div = document.createElement("div");
+function load(){
+  notes.innerHTML="";
+  db.transaction("notes").objectStore("notes")
+  .openCursor().onsuccess=e=>{
+    const c=e.target.result;
+    if(c){
+      const div=document.createElement("div");
       div.className="note-item";
 
-      const text = cursor.value.text;
-      const title = text.split("\n")[0] || "New Note";
-
-      div.innerHTML = `
-        <div class="note-title">${title}</div>
-        <div class="note-preview">${text.substring(0,40)}</div>
+      const t=c.value.text;
+      div.innerHTML=`
+        <div class="note-title">${t.split("\n")[0]}</div>
+        <div class="note-preview">${t.substring(0,40)}</div>
+        <small>${new Date(c.value.time).toLocaleString()}</small>
       `;
 
-      div.onclick = ()=>{
-        openNote(cursor.value.id, text);
+      if(c.value.pinned) div.style.background="#fffbe6";
+
+      div.onclick=()=>{
+        currentId=c.value.id;
+        openEditor(c.value);
       };
 
-      list.appendChild(div);
-      cursor.continue();
+      notes.appendChild(div);
+      c.continue();
     }
   };
 }
 
-// ===== OPEN =====
-function openNote(id,text){
-  currentId=id;
-  document.getElementById("listView").style.display="none";
-  document.getElementById("editView").style.display="block";
-  document.getElementById("editor").value=text;
+function openEditor(n){
+  list.style.display="none";
+  editorView.style.display="block";
+  editor.value=n.text;
+  time.innerText="Edited: "+new Date(n.time).toLocaleString();
 }
 
-// ===== SAVE =====
-document.getElementById("editor").addEventListener("input",()=>{
-  const tx = db.transaction("notes","readwrite");
-  tx.objectStore("notes").put({
+editor.addEventListener("input",()=>{
+  db.transaction("notes","readwrite")
+  .objectStore("notes")
+  .put({
     id:currentId,
-    text:document.getElementById("editor").value
+    text:editor.value,
+    time:Date.now()
   });
 });
 
-// ===== BACK =====
-function goBack(){
-  document.getElementById("editView").style.display="none";
-  document.getElementById("listView").style.display="block";
-  renderList();
+function back(){
+  editorView.style.display="none";
+  list.style.display="block";
+  load();
 }
 
-// ===== DELETE =====
 function deleteNote(){
-  if(!confirm("Delete note?")) return;
+  db.transaction("notes","readwrite")
+  .objectStore("notes")
+  .delete(currentId);
+  back();
+}
 
-  const tx = db.transaction("notes","readwrite");
-  tx.objectStore("notes").delete(currentId);
+function pinNote(){
+  const tx=db.transaction("notes","readwrite");
+  const store=tx.objectStore("notes");
 
-  goBack();
+  store.get(currentId).onsuccess=e=>{
+    const note=e.target.result;
+    note.pinned=!note.pinned;
+    store.put(note);
+    back();
+  };
 }
 </script>
 
