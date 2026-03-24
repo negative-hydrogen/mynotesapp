@@ -16,42 +16,17 @@ body {
 
 /* SIDEBAR */
 .sidebar {
-  width: 260px;
-  background: #ffffff;
+  width: 250px;
+  background: #fff;
   border-right: 1px solid #ddd;
-  display: flex;
-  flex-direction: column;
-}
-
-.sidebar h2 {
-  padding: 15px;
-  margin: 0;
-}
-
-.folder {
-  padding: 10px 15px;
-  cursor: pointer;
-}
-
-.folder.active {
-  background: #e5e5ea;
-}
-
-/* NOTES LIST */
-.notes-list {
-  flex: 1;
   overflow-y: auto;
 }
 
-.note-item {
-  padding: 10px 15px;
-  border-bottom: 1px solid #eee;
+.folder {
+  padding: 12px;
   cursor: pointer;
 }
-
-.note-item.active {
-  background: #d1d1d6;
-}
+.folder.active { background: #e5e5ea; }
 
 /* MAIN */
 .main {
@@ -60,36 +35,52 @@ body {
   flex-direction: column;
 }
 
+/* TOP BAR */
 .topbar {
-  padding: 10px;
   display: flex;
   gap: 10px;
-  border-bottom: 1px solid #ddd;
+  padding: 10px;
   background: #fff;
-}
-
-input, button {
-  padding: 8px;
-  border-radius: 8px;
-  border: 1px solid #ccc;
+  border-bottom: 1px solid #ddd;
 }
 
 button {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+  cursor: pointer;
+}
+
+/* NOTES LIST */
+.notes-list {
+  flex: 1;
+  overflow-y: auto;
+  background: #fff;
+}
+
+.note-item {
+  padding: 12px;
+  border-bottom: 1px solid #eee;
   cursor: pointer;
 }
 
 /* EDITOR */
+.editor-container {
+  display: none;
+  flex: 1;
+  flex-direction: column;
+  background: #fff;
+}
+
 .editor {
   flex: 1;
   padding: 20px;
   outline: none;
-  font-size: 16px;
-  background: #fff;
 }
 
-/* SEARCH */
-.search {
-  margin: 10px;
+/* BACK BUTTON */
+.back-btn {
+  font-weight: bold;
 }
 </style>
 </head>
@@ -97,25 +88,28 @@ button {
 <body>
 
 <!-- SIDEBAR -->
-<div class="sidebar">
-  <h2>Folders</h2>
-  <div id="folders"></div>
-
-  <button onclick="addFolder()">+ Folder</button>
-</div>
+<div class="sidebar" id="folders"></div>
 
 <!-- MAIN -->
 <div class="main">
 
-  <div class="topbar">
-    <input type="text" id="search" placeholder="Search..." oninput="searchNotes()">
-    <button onclick="addNote()">New Note</button>
-    <button onclick="deleteNote()">Delete</button>
+  <!-- LIST VIEW -->
+  <div id="listView">
+    <div class="topbar">
+      <input id="search" placeholder="Search..." oninput="searchNotes()">
+      <button onclick="addNote()">New</button>
+    </div>
+    <div class="notes-list" id="notesList"></div>
   </div>
 
-  <div class="notes-list" id="notesList"></div>
-
-  <div class="editor" id="editor" contenteditable="true"></div>
+  <!-- EDITOR VIEW -->
+  <div class="editor-container" id="editorView">
+    <div class="topbar">
+      <button class="back-btn" onclick="goBack()">← Notes</button>
+      <button onclick="deleteNote()">Delete</button>
+    </div>
+    <div class="editor" id="editor" contenteditable="true"></div>
+  </div>
 
 </div>
 
@@ -125,7 +119,6 @@ let data = JSON.parse(localStorage.getItem("notesApp")) || {
   notes: []
 };
 
-let currentFolder = "All Notes";
 let currentNote = null;
 
 /* SAVE */
@@ -133,34 +126,19 @@ function save() {
   localStorage.setItem("notesApp", JSON.stringify(data));
 }
 
-/* RENDER FOLDERS */
-function renderFolders() {
-  let el = document.getElementById("folders");
-  el.innerHTML = "";
+/* SWITCH VIEWS */
+function openEditor(note) {
+  currentNote = note;
 
-  data.folders.forEach(folder => {
-    let div = document.createElement("div");
-    div.className = "folder" + (folder === currentFolder ? " active" : "");
-    div.innerText = folder;
+  document.getElementById("editor").innerText = note.content;
 
-    div.onclick = () => {
-      currentFolder = folder;
-      renderFolders();
-      renderNotes();
-    };
-
-    el.appendChild(div);
-  });
+  document.getElementById("listView").style.display = "none";
+  document.getElementById("editorView").style.display = "flex";
 }
 
-/* ADD FOLDER */
-function addFolder() {
-  let name = prompt("Folder name:");
-  if (!name) return;
-
-  data.folders.push(name);
-  save();
-  renderFolders();
+function goBack() {
+  document.getElementById("listView").style.display = "block";
+  document.getElementById("editorView").style.display = "none";
 }
 
 /* RENDER NOTES */
@@ -168,20 +146,14 @@ function renderNotes(filtered = null) {
   let list = document.getElementById("notesList");
   list.innerHTML = "";
 
-  let notes = filtered || data.notes.filter(n =>
-    currentFolder === "All Notes" || n.folder === currentFolder
-  );
+  let notes = filtered || data.notes;
 
   notes.forEach(note => {
     let div = document.createElement("div");
-    div.className = "note-item" + (note === currentNote ? " active" : "");
+    div.className = "note-item";
     div.innerText = note.content.slice(0, 30) || "New Note";
 
-    div.onclick = () => {
-      currentNote = note;
-      document.getElementById("editor").innerText = note.content;
-      renderNotes();
-    };
+    div.onclick = () => openEditor(note);
 
     list.appendChild(div);
   });
@@ -191,28 +163,24 @@ function renderNotes(filtered = null) {
 function addNote() {
   let note = {
     id: Date.now(),
-    content: "",
-    folder: currentFolder
+    content: ""
   };
 
   data.notes.unshift(note);
-  currentNote = note;
-
   save();
   renderNotes();
-  document.getElementById("editor").innerText = "";
+
+  openEditor(note);
 }
 
-/* DELETE NOTE */
+/* DELETE */
 function deleteNote() {
   if (!currentNote) return;
 
   data.notes = data.notes.filter(n => n !== currentNote);
-  currentNote = null;
-
-  document.getElementById("editor").innerText = "";
-
   save();
+
+  goBack();
   renderNotes();
 }
 
@@ -237,7 +205,6 @@ function searchNotes() {
 }
 
 /* INIT */
-renderFolders();
 renderNotes();
 </script>
 
