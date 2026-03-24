@@ -6,168 +6,88 @@
 
 <style>
 body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, "San Francisco", sans-serif;
-  background: #f2f2f7;
-  color: #1c1c1e;
+  margin:0;
+  font-family:-apple-system;
+  background:#f2f2f7;
 }
 
 /* HEADER */
 .header {
-  padding: 16px;
-  font-size: 34px;
-  font-weight: 700;
-}
-
-/* SEARCH BAR */
-.search-container {
-  padding: 0 16px 10px;
-}
-
-.search {
-  width: 100%;
-  padding: 10px 14px;
-  border-radius: 12px;
-  border: none;
-  background: #e5e5ea;
-  font-size: 16px;
-}
-
-/* SECTION LABEL */
-.section {
-  padding: 10px 16px 5px;
-  font-size: 13px;
-  color: #8e8e93;
-  font-weight: 600;
+  padding:16px;
+  font-size:28px;
+  font-weight:bold;
 }
 
 /* NOTE CARD */
 .note-item {
-  background: white;
-  margin: 0 12px 10px;
-  padding: 14px;
-  border-radius: 14px;
-  box-shadow: 0 1px 3px rgba(0,0,0,0.04);
-  transition: transform 0.15s ease;
+  background:white;
+  margin:10px;
+  padding:14px;
+  border-radius:12px;
 }
 
-.note-item:active {
-  transform: scale(0.97);
-}
-
-/* TITLE */
-.note-title {
-  font-size: 17px;
-  font-weight: 600;
-}
-
-/* PREVIEW */
-.note-preview {
-  font-size: 14px;
-  color: #6e6e73;
-  margin-top: 2px;
-}
-
-/* TIME */
-.note-time {
-  font-size: 12px;
-  color: #a1a1a6;
-  margin-top: 6px;
-}
-
-/* PINNED */
-.pinned {
-  background: #fffbe6;
-}
-
-/* TOP BAR */
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  padding: 12px;
-  background: #f9f9f9;
-  border-bottom: 1px solid #ddd;
-}
+.note-title { font-weight:bold; }
+.note-preview { color:gray; font-size:14px; }
 
 /* EDITOR */
 textarea {
-  width: 100%;
-  height: 75vh;
-  border: none;
-  outline: none;
-  font-size: 18px;
-  padding: 16px;
-  background: white;
+  width:100%;
+  height:75vh;
+  border:none;
+  outline:none;
+  font-size:18px;
+  padding:10px;
 }
 
 /* FLOAT BUTTON */
 .fab {
-  position: fixed;
-  bottom: 20px;
-  right: 20px;
-  background: #ffcc00;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 28px;
-  box-shadow: 0 4px 10px rgba(0,0,0,0.15);
+  position:fixed;
+  bottom:20px;
+  right:20px;
+  background:#ffcc00;
+  width:50px;
+  height:50px;
+  border-radius:50%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:24px;
 }
 
-/* ANIMATIONS */
+/* ===== FIXED VIEW SYSTEM ===== */
 .view {
-  position: absolute;
-  width: 100%;
-  height: 100%;
-  top: 0;
-  left: 0;
-
-  opacity: 0;
-  transform: translateX(100%);
-  pointer-events: none;
-
-  transition: transform 0.35s ease, opacity 0.3s;
+  display:none;
 }
 
 .view.active {
-  opacity: 1;
-  transform: translateX(0);
-  pointer-events: auto;
-  z-index: 2;
+  display:block;
 }
-
-.view.hidden-left {
-  transform: translateX(-30%);
-  opacity: 0.4;
-  z-index: 1;
-}
-
-
 </style>
 </head>
 
 <body>
 
+<!-- LOCK -->
 <div id="lock">
   <h2 style="text-align:center;margin-top:50px;">Enter PIN</h2>
   <input type="password" id="pin">
   <button onclick="unlock()">Unlock</button>
 </div>
 
-<div id="list" class="view active">
+<!-- LIST -->
+<div id="list" class="view">
   <div class="header">Notes</div>
   <button onclick="createNote()">+ New</button>
   <div id="notes"></div>
   <div class="fab" onclick="createNote()">+</div>
 </div>
 
+<!-- EDITOR -->
 <div id="editorView" class="view">
   <button onclick="back()">← Back</button>
   <button onclick="pinNote()">📌</button>
   <button onclick="deleteNote()">Delete</button>
-  <div id="time" style="margin:10px;color:gray;"></div>
+  <div id="time"></div>
   <textarea id="editor"></textarea>
 </div>
 
@@ -175,108 +95,94 @@ textarea {
 const PIN="1234";
 let db,currentId;
 
+// ===== UNLOCK =====
 function unlock(){
   if(pin.value===PIN){
-    lock.style.display="none";
-    list.style.display="block";
+    document.getElementById("lock").style.display="none";
+    document.getElementById("list").classList.add("active");
     init();
   } else alert("Wrong PIN");
 }
 
+// ===== DB =====
 function init(){
   const req=indexedDB.open("DB",1);
+
   req.onupgradeneeded=e=>{
     db=e.target.result;
     db.createObjectStore("notes",{keyPath:"id",autoIncrement:true});
   };
+
   req.onsuccess=e=>{
     db=e.target.result;
     load();
   };
 }
 
+// ===== CREATE =====
 function createNote(){
   db.transaction("notes","readwrite")
   .objectStore("notes")
   .add({text:"New Note",time:Date.now(),pinned:false});
+
   setTimeout(load,100);
 }
 
+// ===== LOAD =====
 function load(){
   notes.innerHTML="";
-
-  let pinned = [];
-  let normal = [];
 
   db.transaction("notes").objectStore("notes")
   .openCursor().onsuccess=e=>{
     const c=e.target.result;
 
     if(c){
-      if(c.value.pinned) pinned.push(c.value);
-      else normal.push(c.value);
+      const div=document.createElement("div");
+      div.className="note-item";
+
+      const text=c.value.text;
+
+      div.innerHTML=`
+        <div class="note-title">${text.split("\n")[0]}</div>
+        <div class="note-preview">${text.substring(0,50)}</div>
+      `;
+
+      div.onclick=()=>openEditor(c.value);
+
+      notes.appendChild(div);
       c.continue();
-    } else {
-      renderSection("Pinned", pinned);
-      renderSection("Notes", normal);
     }
   };
 }
 
-function renderSection(title, data){
-  if(data.length===0) return;
-
-  const section = document.createElement("div");
-  section.innerHTML = `<div class="section">${title}</div>`;
-  notes.appendChild(section);
-
-  data.forEach(n=>{
-    const div=document.createElement("div");
-    div.className="note-item "+(n.pinned?"pinned":"");
-
-    const text=n.text;
-    const title=text.split("\n")[0] || "New Note";
-
-    div.innerHTML=`
-      <div class="note-title">${title}</div>
-      <div class="note-preview">${text.substring(0,60)}</div>
-      <div class="note-time">${new Date(n.time).toLocaleString()}</div>
-    `;
-
-    div.onclick=()=>openEditor(n);
-    notes.appendChild(div);
-  });
-}
-
+// ===== OPEN =====
 function openEditor(note){
   currentId = note.id;
 
   editor.value = note.text;
-  time.innerText = "Edited: " + new Date(note.time).toLocaleString();
+  time.innerText = new Date(note.time).toLocaleString();
 
   list.classList.remove("active");
-  list.classList.add("hidden-left");
-
-  editorView.classList.remove("hidden-left");
   editorView.classList.add("active");
 }
 
+// ===== BACK =====
 function back(){
   editorView.classList.remove("active");
-
-  list.classList.remove("hidden-left");
   list.classList.add("active");
-
   load();
 }
 
+// ===== DELETE =====
 function deleteNote(){
   db.transaction("notes","readwrite")
   .objectStore("notes")
   .delete(currentId);
+
   back();
 }
 
+// ===== PIN =====
 function pinNote(){
   const tx=db.transaction("notes","readwrite");
   const store=tx.objectStore("notes");
