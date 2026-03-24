@@ -1,368 +1,244 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Notes</title>
 
 <style>
 body {
-  margin:0;
-  font-family:-apple-system;
-  background:#f2f2f7;
-  -webkit-overflow-scrolling: touch;
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, sans-serif;
+  background: #f2f2f7;
+  display: flex;
+  height: 100vh;
 }
 
-/* HEADER */
-.header {
-  position: sticky;
-  top: 0;
-  padding: 12px 16px;
-  font-size: 28px;
-  font-weight: 700;
-  background: rgba(242,242,247,0.9);
-  backdrop-filter: blur(12px);
+/* SIDEBAR */
+.sidebar {
+  width: 260px;
+  background: #ffffff;
+  border-right: 1px solid #ddd;
+  display: flex;
+  flex-direction: column;
+}
+
+.sidebar h2 {
+  padding: 15px;
+  margin: 0;
+}
+
+.folder {
+  padding: 10px 15px;
+  cursor: pointer;
+}
+
+.folder.active {
+  background: #e5e5ea;
+}
+
+/* NOTES LIST */
+.notes-list {
+  flex: 1;
+  overflow-y: auto;
+}
+
+.note-item {
+  padding: 10px 15px;
+  border-bottom: 1px solid #eee;
+  cursor: pointer;
+}
+
+.note-item.active {
+  background: #d1d1d6;
+}
+
+/* MAIN */
+.main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.topbar {
+  padding: 10px;
+  display: flex;
+  gap: 10px;
+  border-bottom: 1px solid #ddd;
+  background: #fff;
+}
+
+input, button {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #ccc;
+}
+
+button {
+  cursor: pointer;
+}
+
+/* EDITOR */
+.editor {
+  flex: 1;
+  padding: 20px;
+  outline: none;
+  font-size: 16px;
+  background: #fff;
 }
 
 /* SEARCH */
 .search {
-  margin:10px;
-  padding:10px;
-  width:calc(100% - 20px);
-  border-radius:10px;
-  border:none;
-  background:#e5e5ea;
+  margin: 10px;
 }
-
-/* NOTES CONTAINER */
-#notes {
-  margin: 10px 12px;
-  border-radius: 12px;
-  overflow: hidden;
-  background: white;
-}
-
-/* NOTE */
-.note-item {
-  background: white;
-  padding: 12px 16px;
-  border-bottom: 1px solid #e5e5ea;
-  transition: 0.2s;
-}
-
-.note-item:active {
-  transform: scale(0.97);
-  background:#f2f2f2;
-}
-
-.note-title { font-size:17px; font-weight:500; }
-.note-preview { font-size:14px; color:#6e6e73; }
-
-/* FLOAT BUTTON */
-.fab {
-  position: fixed;
-  bottom: 25px;
-  right: 20px;
-  background: #ffcc00;
-  width: 56px;
-  height: 56px;
-  border-radius: 50%;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  font-size:28px;
-}
-
-/* VIEW */
-.view { display:none; }
-.view.active { display:block; }
-
-/* EDITOR */
-textarea {
-  width:100%;
-  height:80vh;
-  border:none;
-  outline:none;
-  font-size:18px;
-  padding:16px;
-}
-
-/* TOPBAR */
-.topbar {
-  display:flex;
-  justify-content:space-between;
-  padding:10px;
-  background:rgba(255,255,255,0.9);
-  backdrop-filter: blur(10px);
-}
-
- #editor {
-  padding:16px;
-  min-height:80vh;
-  outline:none;
-  font-size:18px;
-} 
-
-/* BUTTON */
-button {
-  background:none;
-  border:none;
-  font-size:16px;
-}
-button:active { opacity:0.5; }
 </style>
 </head>
 
 <body>
 
-<!-- LOCK -->
-<div id="lock">
-  <h2 style="text-align:center;margin-top:50px;">Enter PIN</h2>
-  <input type="password" id="pin">
-  <button onclick="unlock()">Unlock</button>
+<!-- SIDEBAR -->
+<div class="sidebar">
+  <h2>Folders</h2>
+  <div id="folders"></div>
+
+  <button onclick="addFolder()">+ Folder</button>
 </div>
 
-<!-- LIST -->
-<div id="list" class="view">
-  <div class="header">Notes</div>
-  <input id="search" class="search" placeholder="Search">
-  <div id="notes"></div>
-  <div class="fab" onclick="createNote()">+</div>
-</div>
+<!-- MAIN -->
+<div class="main">
 
-<!-- EDITOR -->
-<div id="editorView" class="view">
   <div class="topbar">
-    <select id="folderSelect" onchange="changeFolder()">
-  <option>Notes</option>
-  <option>Work</option>
-  <option>Personal</option>
-</select>
-    <button onclick="format('bold')">B</button>
-<button onclick="format('italic')">I</button>
-<button onclick="format('underline')">U</button>
-    <button onclick="back()">Notes</button>
-    <div>
-      <button onclick="addChecklist()">☑️</button>
-      <button onclick="pinNote()">📌</button>
-      <button onclick="deleteNote()">🗑️</button>
-    </div>
+    <input type="text" id="search" placeholder="Search..." oninput="searchNotes()">
+    <button onclick="addNote()">New Note</button>
+    <button onclick="deleteNote()">Delete</button>
   </div>
-  <div id="time" style="padding:10px;color:gray;"></div>
-  <div id="editor" contenteditable="true"></div>
+
+  <div class="notes-list" id="notesList"></div>
+
+  <div class="editor" id="editor" contenteditable="true"></div>
+
 </div>
 
 <script>
-const PIN="1234";
-let db,currentId,startX=0;
+let data = JSON.parse(localStorage.getItem("notesApp")) || {
+  folders: ["All Notes"],
+  notes: []
+};
 
-// TOUCH FIX
-document.addEventListener('touchstart', ()=>{}, {passive:true});
+let currentFolder = "All Notes";
+let currentNote = null;
 
-// UNLOCK
-function unlock(){
-  if(pin.value===PIN){
-    lock.style.display="none";
-    list.classList.add("active");
-    init();
-  }
+/* SAVE */
+function save() {
+  localStorage.setItem("notesApp", JSON.stringify(data));
 }
 
-// DB
-function init(){
-  const req=indexedDB.open("DB",1);
+/* RENDER FOLDERS */
+function renderFolders() {
+  let el = document.getElementById("folders");
+  el.innerHTML = "";
 
-  req.onupgradeneeded=e=>{
-    db=e.target.result;
-    db.createObjectStore("notes",{keyPath:"id",autoIncrement:true});
-  };
+  data.folders.forEach(folder => {
+    let div = document.createElement("div");
+    div.className = "folder" + (folder === currentFolder ? " active" : "");
+    div.innerText = folder;
 
-  req.onsuccess=e=>{
-    db=e.target.result;
-    load();
-  };
-}
-
-// CREATE
-function createNote(){
-  const req=db.transaction("notes","readwrite")
-    .objectStore("notes")
-    .add({text:"New Note",time:Date.now(),pinned:false,folder:"Notes"});
-
-  req.onsuccess=e=>{
-    openEditor({id:e.target.result,text:"New Note",time:Date.now()});
-  };
-}
-
-// LOAD
-function load(){
-  notes.innerHTML="";
-  let currentFolder="Notes";
-  let pinned=[],normal=[];
-
-  db.transaction("notes").objectStore("notes")
-  .openCursor().onsuccess=e=>{
-    const c=e.target.result;
-    if(c.value.folder===currentFolder){
-  c.value.pinned?pinned.push(c.value):normal.push(c.value);
-}
-    if(c){
-      c.value.pinned?pinned.push(c.value):normal.push(c.value);
-      c.continue();
-    } else {
-      render("Pinned",pinned);
-      render("Notes",normal);
-    }
-  };
-}
-
-// RENDER
-function render(title,data){
-  if(!data.length) return;
-
-  const h=document.createElement("div");
-  h.style.padding="10px";
-  h.style.color="gray";
-  h.innerText=title;
-  notes.appendChild(h);
-
-  data.forEach(n=>{
-    const div=document.createElement("div");
-    div.className="note-item";
-
-    const lines=n.text.split("\n");
-    div.innerHTML=`
-      <div class="note-title">${lines[0]}</div>
-      <div class="note-preview">${lines.slice(1).join(" ").substring(0,50)}</div>
-    `;
-
-    // OPEN
-    div.onclick=()=>openEditor(n);
-
-    // SWIPE DELETE
-    div.addEventListener("touchstart",e=>{
-      startX=e.touches[0].clientX;
-    });
-
-    div.addEventListener("touchmove",e=>{
-      let diff=e.touches[0].clientX-startX;
-      if(diff<0){
-        div.style.transform=`translateX(${diff}px)`;
-        div.style.background="#ff3b30";
-      }
-    });
-
-    div.addEventListener("touchend",e=>{
-      let diff=e.changedTouches[0].clientX-startX;
-      if(diff<-100){
-        deleteById(n.id);
-      } else {
-        div.style.transform="translateX(0)";
-        div.style.background="white";
-      }
-    });
-
-    // LONG PRESS
-    let timer;
-    div.addEventListener("touchstart",()=>{
-      timer=setTimeout(()=>deleteById(n.id),600);
-    });
-    div.addEventListener("touchend",()=>clearTimeout(timer));
-
-    notes.appendChild(div);
-  });
-}
-
-// OPEN
-function openEditor(note){
-  currentId=note.id;
-  editor.innerHTML=note.text;
-  time.innerText=new Date(note.time).toLocaleString();
-
-  list.classList.remove("active");
-  editorView.classList.add("active");
-
-  setTimeout(()=>editor.focus(),100);
-}
-
-// AUTOSAVE
-let saveTimeout;
-editor.addEventListener("input",()=>{
-  clearTimeout(saveTimeout);
-  saveTimeout=setTimeout(()=>{
-    const store=db.transaction("notes","readwrite").objectStore("notes");
-    store.get(currentId).onsuccess=e=>{
-      let n=e.target.result;
-      store.put({...n,text:editor.value,time:Date.now()});
+    div.onclick = () => {
+      currentFolder = folder;
+      renderFolders();
+      renderNotes();
     };
-  },300);
-});
 
-// BACK
-function back(){
-  if(!editor.value.trim()){
-    db.transaction("notes","readwrite")
-      .objectStore("notes").delete(currentId);
-  }
-  editorView.classList.remove("active");
-  list.classList.add("active");
-  load();
-}
-
-// DELETE
-function deleteNote(){
-  deleteById(currentId);
-  back();
-}
-
-function deleteById(id){
-  db.transaction("notes","readwrite")
-    .objectStore("notes").delete(id);
-  load();
-}
-
-// PIN
-function pinNote(){
-  const store=db.transaction("notes","readwrite").objectStore("notes");
-  store.get(currentId).onsuccess=e=>{
-    let n=e.target.result;
-    n.pinned=!n.pinned;
-    store.put(n);
-    back();
-  };
-}
-
-// SEARCH
-document.getElementById("search").addEventListener("input",function(){
-  let v=this.value.toLowerCase();
-  document.querySelectorAll(".note-item").forEach(n=>{
-    n.style.display=n.innerText.toLowerCase().includes(v)?"block":"none";
+    el.appendChild(div);
   });
-});
-
-// CHECKLIST
-function addChecklist(){
-  const pos=editor.selectionStart;
-  editor.value=
-    editor.value.slice(0,pos)+"\n☐ "+editor.value.slice(pos);
 }
 
-//changeFolder
- function changeFolder(){
-  const store=db.transaction("notes","readwrite").objectStore("notes");
+/* ADD FOLDER */
+function addFolder() {
+  let name = prompt("Folder name:");
+  if (!name) return;
 
-  store.get(currentId).onsuccess=e=>{
-    let n=e.target.result;
-    n.folder=document.getElementById("folderSelect").value;
-    store.put(n);
+  data.folders.push(name);
+  save();
+  renderFolders();
+}
+
+/* RENDER NOTES */
+function renderNotes(filtered = null) {
+  let list = document.getElementById("notesList");
+  list.innerHTML = "";
+
+  let notes = filtered || data.notes.filter(n =>
+    currentFolder === "All Notes" || n.folder === currentFolder
+  );
+
+  notes.forEach(note => {
+    let div = document.createElement("div");
+    div.className = "note-item" + (note === currentNote ? " active" : "");
+    div.innerText = note.content.slice(0, 30) || "New Note";
+
+    div.onclick = () => {
+      currentNote = note;
+      document.getElementById("editor").innerText = note.content;
+      renderNotes();
+    };
+
+    list.appendChild(div);
+  });
+}
+
+/* ADD NOTE */
+function addNote() {
+  let note = {
+    id: Date.now(),
+    content: "",
+    folder: currentFolder
   };
-} 
 
-//format
+  data.notes.unshift(note);
+  currentNote = note;
 
- function format(cmd){
-  document.execCommand(cmd,false,null);
-} 
-  
+  save();
+  renderNotes();
+  document.getElementById("editor").innerText = "";
+}
+
+/* DELETE NOTE */
+function deleteNote() {
+  if (!currentNote) return;
+
+  data.notes = data.notes.filter(n => n !== currentNote);
+  currentNote = null;
+
+  document.getElementById("editor").innerText = "";
+
+  save();
+  renderNotes();
+}
+
+/* AUTO SAVE */
+document.getElementById("editor").addEventListener("input", () => {
+  if (!currentNote) return;
+
+  currentNote.content = document.getElementById("editor").innerText;
+  save();
+  renderNotes();
+});
+
+/* SEARCH */
+function searchNotes() {
+  let q = document.getElementById("search").value.toLowerCase();
+
+  let filtered = data.notes.filter(n =>
+    n.content.toLowerCase().includes(q)
+  );
+
+  renderNotes(filtered);
+}
+
+/* INIT */
+renderFolders();
+renderNotes();
 </script>
 
 </body>
